@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from secrets import compare_digest
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
@@ -37,7 +37,7 @@ app.add_middleware(
 
 
 def now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def record_audit(db: Session, event_type: str, entity_type: str, entity_id: str, actor: str, data: dict) -> None:

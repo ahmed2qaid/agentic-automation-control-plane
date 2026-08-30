@@ -61,6 +61,31 @@ class Execution(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ExecutionRelation(Base):
+    __tablename__ = "execution_relations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    source_execution_id: Mapped[str] = mapped_column(String(36), index=True)
+    target_execution_id: Mapped[str] = mapped_column(String(36), index=True)
+    relation_type: Mapped[str] = mapped_column(String(20), index=True)
+    actor: Mapped[str] = mapped_column(String(180), default="system")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CostEvent(Base):
+    __tablename__ = "cost_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    execution_id: Mapped[str] = mapped_column(String(36), index=True)
+    provider: Mapped[str] = mapped_column(String(80), default="unknown")
+    model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Approval(Base):
     __tablename__ = "approvals"
 

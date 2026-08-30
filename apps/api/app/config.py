@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./flowguard.db"
     redis_url: str = "redis://localhost:6379/0"
     n8n_shared_secret: str = "change-me-in-production"
+    n8n_api_url: str = "http://n8n:5678"
+    n8n_public_url: str = "http://n8n:5678"
+    n8n_api_key: str = ""
     max_auto_cost_usd: float = 0.50
     cors_origins: str = "http://localhost:3000"
 

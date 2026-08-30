@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flowguard-api"
-version = "0.1.0"
-description = "Policy and approval control plane for n8n and agentic automation"
+version = "0.2.0"
+description = "Policy, approval, MCP, retry/replay and observability control plane for n8n and agentic automation"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.116,<1",

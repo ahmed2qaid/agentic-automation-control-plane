@@ -55,6 +55,9 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://flowguard:flowguard@postgres:5432/flowguard}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       N8N_SHARED_SECRET: ${N8N_SHARED_SECRET:-change-me-in-production}
+      N8N_API_URL: ${N8N_API_URL:-http://n8n:5678}
+      N8N_PUBLIC_URL: ${N8N_PUBLIC_URL:-http://n8n:5678}
+      N8N_API_KEY: ${N8N_API_KEY:-}
       MAX_AUTO_COST_USD: ${MAX_AUTO_COST_USD:-0.50}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
     depends_on:
@@ -62,6 +65,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      n8n:
+        condition: service_started
 
   web:
     build:

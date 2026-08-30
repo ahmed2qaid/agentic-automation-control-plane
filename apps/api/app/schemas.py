@@ -59,6 +59,12 @@ class ExecutionCreate(BaseModel):
     requested_by: str = Field(default="anonymous", min_length=1, max_length=180)
 
 
+class ReplayRequest(BaseModel):
+    requested_by: str = Field(default="dashboard-user", min_length=1, max_length=180)
+    dry_run: bool | None = None
+    estimated_cost_usd: float | None = Field(default=None, ge=0)
+
+
 class ExecutionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -75,6 +81,58 @@ class ExecutionRead(BaseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+
+
+class ExecutionRelationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    source_execution_id: str
+    target_execution_id: str
+    relation_type: str
+    actor: str
+    created_at: datetime
+
+
+class CostEventCreate(BaseModel):
+    provider: str = Field(default="unknown", min_length=1, max_length=80)
+    model: str | None = Field(default=None, max_length=120)
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    cost_usd: float = Field(default=0, ge=0)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CostEventRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    execution_id: str
+    provider: str
+    model: str | None
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+    metadata_json: dict[str, Any]
+    created_at: datetime
+
+
+class AuditRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    event_type: str
+    entity_type: str
+    entity_id: str
+    actor: str
+    data: dict[str, Any]
+    created_at: datetime
+
+
+class TraceRead(BaseModel):
+    execution: ExecutionRead
+    workflow: WorkflowRead
+    events: list[AuditRead]
+    costs: list[CostEventRead]
+    relations: list[ExecutionRelationRead]
+    actual_cost_usd: float
 
 
 class ApprovalDecision(BaseModel):
@@ -94,19 +152,23 @@ class ApprovalRead(BaseModel):
     decided_at: datetime | None
 
 
-class AuditRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: str
-    event_type: str
-    entity_type: str
-    entity_id: str
-    actor: str
-    data: dict[str, Any]
-    created_at: datetime
-
-
 class N8nEvent(BaseModel):
     execution_id: str | None = None
     event_type: str = "n8n.event"
     status: str | None = None
     data: dict[str, Any] = Field(default_factory=dict)
+
+
+class N8nSyncResult(BaseModel):
+    discovered: int
+    imported: int
+    updated: int
+    skipped: int
+    workflows: list[WorkflowRead]
+
+
+class McpRequest(BaseModel):
+    jsonrpc: Literal["2.0"] = "2.0"
+    id: str | int | None = None
+    method: str
+    params: dict[str, Any] = Field(default_factory=dict)

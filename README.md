@@ -1,98 +1,126 @@
-# FlowGuard — Agentic Automation Control Plane
+<div align="center">
 
-> A production-oriented control layer for **n8n workflows and AI agents** with policy enforcement, human approvals, MCP tools, retry/replay lineage, cost tracking and execution observability.
+# 🛡️ FlowGuard
 
-FlowGuard is not another workflow builder. It sits **in front of n8n and agentic automations** and decides what may execute automatically, what must wait for human approval, and what must be denied.
+### Agentic Automation Control Plane
 
-## Why FlowGuard?
+**Put policy, approvals, cost guardrails and observability in front of n8n workflows and AI agents.**
 
-Traditional automation often looks like:
+[![CI](https://github.com/ahmed2qaid/agentic-automation-control-plane/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ahmed2qaid/agentic-automation-control-plane/actions/workflows/ci.yml)
+![Version](https://img.shields.io/badge/version-v0.2.0-56dfc1)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-TypeScript-black?logo=nextdotjs)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
-`Trigger → Workflow → Action`
+`n8n` · `AI Agents` · `MCP` · `FastAPI` · `Next.js` · `PostgreSQL` · `Docker`
 
-FlowGuard adds the missing control layer:
+</div>
 
-`Request → Policy Engine → Approval Gate → n8n / Agent → Trace + Cost + Audit`
+---
 
-The goal is to make AI-powered automation safer and easier to operate when workflows can send messages, update records, spend money, call APIs or invoke autonomous agents.
+## The problem
 
-## V0.2 capabilities
+Modern automation can do much more than move data between apps. An AI agent or workflow can send messages, mutate records, call paid APIs, spend tokens, or trigger another autonomous system.
 
-### Guarded execution
-- Workflow Registry for n8n automations
-- Risk levels: low, medium, high, critical
-- Policy Engine with allow / require approval / deny decisions
-- Human-in-the-loop approval queue
-- Dry-run mode before external execution
-- n8n webhook execution adapter
-- Immutable-style audit events
+A direct automation path is simple, but it gives the runtime too much authority:
 
-### Agentic runtime
-- **MCP Gateway** at `POST /mcp`
-- MCP tool: `flowguard.list_workflows`
-- MCP tool: `flowguard.request_execution`
-- MCP tool: `flowguard.execution_trace`
-- MCP requests use the same policy and approval path as dashboard requests
+```text
+Trigger → Agent / Workflow → External Action
+```
 
-### Reliability and observability
-- Retry failed executions
-- Safe replay with dry-run default
-- Retry/replay lineage graph data
-- Per-execution execution trace
-- AI/API cost events with provider, model and token counts
-- Actual cost aggregation beside estimated cost
-- Runtime console at `/runtime`
+FlowGuard inserts an explicit control plane before side effects:
 
-### n8n integration
-- Manual workflow registration
-- n8n API synchronization
-- Automatic discovery of workflows containing Webhook nodes
-- Stable `n8n-<workflow-id>` registry slugs
-- Import/update/skip sync reporting
+```text
+Request → Policy → Approval → Execution → Trace → Cost → Audit
+```
 
-### Platform
-- Next.js dashboard
-- FastAPI control API
-- PostgreSQL
-- Redis-ready architecture
-- Docker Compose local stack
-- Example guarded n8n workflow
-- GitHub Actions CI for API and frontend
+It is **not another workflow builder**. n8n remains the automation runtime; FlowGuard owns the decision about whether execution is allowed.
+
+## Why this is different from an n8n workflow collection
+
+| Concern | Plain workflow | FlowGuard |
+| --- | --- | --- |
+| Risk policy | Embedded or manual | Central policy engine |
+| Human approval | Workflow-specific | Durable approval gate |
+| AI agent access | Direct tool/webhook access | Guarded MCP gateway |
+| Testing | Usually triggers the workflow | First-class dry-run |
+| Failure recovery | Manual / workflow-specific | Retry + safe replay lineage |
+| Cost visibility | External / ad hoc | Estimated + actual provider cost |
+| Auditability | Runtime logs | Control-plane audit trail |
+| n8n discovery | Manual | Workflow registry sync |
+
+## What ships in v0.2
+
+**Guarded execution** — workflow registry, `low / medium / high / critical` risk levels, deterministic policy evaluation, human approvals, deny rules and dry-runs.
+
+**Agentic runtime** — MCP tools for workflow discovery, guarded execution requests and execution-trace inspection. MCP requests pass through the same policy path as REST and dashboard requests.
+
+**Reliability** — failed execution retry, replay with dry-run as the safe default, and durable retry/replay lineage instead of overwriting history.
+
+**Observability** — execution trace, audit events, provider/model token usage and actual-cost events compared with the original estimate.
+
+**n8n integration** — webhook execution adapter plus n8n API synchronization that discovers workflows containing Webhook nodes.
+
+**Operator UI** — Next.js Control Room for approvals/policies/executions and a Runtime Console for traces, costs and lineage.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U[User / API / AI Agent] --> C[FlowGuard API]
-    M[MCP Client] --> G[MCP Gateway]
-    G --> C
-    C --> P[Policy Engine]
-    P -->|Allow| E[Execution Service]
-    P -->|Approval| H[Human Approval Queue]
-    P -->|Deny| A[Audit Log]
-    H -->|Approved| E
-    H -->|Rejected| A
-    E --> N[n8n Workflow]
-    N --> T[External Tools / AI Agents]
-    N --> C
-    C --> X[Execution Trace]
-    C --> K[Cost Events]
-    C --> DB[(PostgreSQL)]
-    C --> R[(Redis - future durable workers)]
-    D[Next.js Control Room] --> C
-    O[Runtime Console] --> C
+    Caller[App / User / AI Agent] --> API[FlowGuard API]
+    MCP[MCP Client] --> Gateway[MCP Gateway]
+    Gateway --> API
+
+    API --> Policy{Policy Engine}
+    Policy -->|allow| Execute[Execution Service]
+    Policy -->|approval| Human[Human Approval]
+    Policy -->|deny| Audit[Audit Trail]
+    Human -->|approved| Execute
+    Human -->|rejected| Audit
+
+    Execute --> N8N[n8n]
+    N8N --> Tools[APIs / Tools / Agents]
+    N8N --> API
+
+    API --> Trace[Execution Trace]
+    API --> Cost[Cost Ledger]
+    API --> DB[(PostgreSQL)]
+    API --> Redis[(Redis)]
 ```
 
-## Stack
+The key design rule is simple: **the agent never grants itself authority.** Risk, budget and approval policy live outside prompts and n8n payloads.
 
-- **Dashboard:** Next.js + TypeScript
-- **Control API:** FastAPI + SQLAlchemy
-- **Database:** PostgreSQL
-- **Automation runtime:** n8n
-- **Cache / future queue:** Redis
-- **Local orchestration:** Docker Compose
+## A real demo scenario
 
-## Quick start
+Imagine an AI agent receives:
+
+> Send a customer update to the production mailing workflow.
+
+The agent calls FlowGuard through MCP instead of calling n8n directly.
+
+```text
+AI Agent
+  ↓
+flowguard.request_execution
+  ↓
+Workflow = high risk
+  ↓
+Policy Engine → require_approval
+  ↓
+Human approves in Control Room
+  ↓
+n8n webhook executes
+  ↓
+FlowGuard records result + actual cost + audit trace
+```
+
+If the execution fails, an operator can **Retry** it. If an old execution must be reproduced, **Replay** creates a new related execution and defaults to dry-run so the original side effect is not silently repeated.
+
+See [`docs/DEMO.md`](docs/DEMO.md) for the complete walkthrough.
+
+## 5-minute local start
+
+Prerequisite: Docker + Docker Compose.
 
 ```bash
 git clone https://github.com/ahmed2qaid/agentic-automation-control-plane.git
@@ -101,114 +129,47 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Open:
-
-- Control Room: http://localhost:3000
-- Runtime / Trace Console: http://localhost:3000/runtime
-- FlowGuard API docs: http://localhost:8000/docs
-- MCP endpoint: http://localhost:8000/mcp
-- n8n: http://localhost:5678
-
-Import the example workflow:
+Then import the guarded n8n example:
 
 ```bash
 docker compose exec n8n n8n import:workflow --input=/workflows/guarded-action.json
 ```
 
-Then activate **FlowGuard - Guarded Action Demo** in n8n.
+Open these local services:
 
-## Configure n8n workflow sync
+| Service | Address |
+| --- | --- |
+| FlowGuard Control Room | `http://localhost:3000` |
+| Runtime / Trace Console | `http://localhost:3000/runtime` |
+| FastAPI docs | `http://localhost:8000/docs` |
+| MCP endpoint | `http://localhost:8000/mcp` |
+| n8n | `http://localhost:5678` |
 
-FlowGuard uses the n8n public API to discover workflows with Webhook nodes.
+Activate **FlowGuard - Guarded Action Demo** in n8n before testing a real execution.
 
-1. Open n8n and create an API key.
-2. Put it in `.env`:
+## Policy defaults
 
-```env
-N8N_API_URL=http://n8n:5678
-N8N_PUBLIC_URL=http://n8n:5678
-N8N_API_KEY=your-n8n-api-key
+| Condition | Decision |
+| --- | --- |
+| Dry-run requested | `dry_run` — never calls n8n |
+| Low / medium risk | `allow` |
+| High risk | `require_approval` |
+| Critical risk | `deny` |
+| Cost above `MAX_AUTO_COST_USD` | `require_approval` |
+
+Persisted policies are priority ordered, so product-specific rules can override the conservative defaults.
+
+## MCP surface
+
+Current tools:
+
+```text
+flowguard.list_workflows
+flowguard.request_execution
+flowguard.execution_trace
 ```
 
-3. Synchronize:
-
-```bash
-curl -X POST http://localhost:8000/api/workflows/sync/n8n
-```
-
-FlowGuard imports new webhook workflows, updates known workflows, and leaves unchanged workflows untouched. Risk defaults to `medium` for newly synchronized workflows so policy remains owned by FlowGuard rather than n8n payloads.
-
-## Example guarded execution
-
-```bash
-curl -X POST http://localhost:8000/api/executions \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "workflow_id": "<workflow-id>",
-    "input": {"recipient":"demo@example.com","subject":"Hello"},
-    "estimated_cost_usd": 0.02,
-    "dry_run": true,
-    "requested_by": "local-demo"
-  }'
-```
-
-Policy defaults:
-
-- **low / medium** → automatic execution
-- **high** → human approval required
-- **critical** → denied
-- estimated cost above `MAX_AUTO_COST_USD` → human approval required
-- `dry_run=true` → evaluate and record, but never call n8n
-
-## Retry and replay
-
-Retry is restricted to failed executions and re-enters the policy engine:
-
-```bash
-curl -X POST http://localhost:8000/api/executions/<execution-id>/retry \
-  -H 'Content-Type: application/json' \
-  -d '{"requested_by":"operator"}'
-```
-
-Replay creates a new related execution and defaults to **dry-run** so historical inputs are not repeated as side effects accidentally:
-
-```bash
-curl -X POST http://localhost:8000/api/executions/<execution-id>/replay \
-  -H 'Content-Type: application/json' \
-  -d '{"requested_by":"operator"}'
-```
-
-Inspect the complete lineage and runtime trace:
-
-```bash
-curl http://localhost:8000/api/executions/<execution-id>/trace
-```
-
-## Record actual AI cost
-
-Workers, n8n nodes or agent adapters can report real usage after a provider call:
-
-```bash
-curl -X POST http://localhost:8000/api/executions/<execution-id>/costs \
-  -H 'Content-Type: application/json' \
-  -H 'X-FlowGuard-Secret: change-me-in-production' \
-  -d '{
-    "provider":"openai",
-    "model":"example-model",
-    "input_tokens":1200,
-    "output_tokens":300,
-    "cost_usd":0.0134,
-    "metadata":{"step":"summarize"}
-  }'
-```
-
-The Runtime Console compares estimated cost with accumulated actual cost and displays each provider/model event.
-
-## MCP Gateway
-
-The `/mcp` endpoint implements the core JSON-RPC flow needed for a tool-oriented MCP client: `initialize`, `tools/list`, and `tools/call`.
-
-List tools:
+Example discovery request:
 
 ```bash
 curl -X POST http://localhost:8000/mcp \
@@ -216,66 +177,126 @@ curl -X POST http://localhost:8000/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
-Request a guarded execution through MCP:
+An MCP execution request intentionally **cannot bypass** policy or approval requirements.
 
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/call",
-  "params": {
-    "name": "flowguard.request_execution",
-    "arguments": {
-      "workflow_id": "<workflow-id>",
-      "input": {"task": "prepare operations report"},
-      "estimated_cost_usd": 0.03,
-      "dry_run": true,
-      "requested_by": "agent-demo"
-    }
-  }
-}
+## n8n registry sync
+
+Add an n8n API key to `.env`:
+
+```env
+N8N_API_URL=http://n8n:5678
+N8N_PUBLIC_URL=http://n8n:5678
+N8N_API_KEY=your-n8n-api-key
 ```
 
-The MCP gateway intentionally does **not** bypass policy. A high-risk request still becomes a pending approval and a critical request is still denied.
+Then synchronize:
 
-## Upgrade design
+```bash
+curl -X POST http://localhost:8000/api/workflows/sync/n8n
+```
 
-V0.2 does not alter existing V0.1 `executions` columns. New capabilities use additive tables:
+FlowGuard discovers n8n workflows with Webhook nodes and maps them into the registry. Newly discovered workflows default to `medium` risk so trust is assigned by FlowGuard, not by workflow input.
 
-- `execution_relations`
-- `cost_events`
+## Execution trace and cost ledger
 
-This keeps existing local/PostgreSQL installations compatible with the current `Base.metadata.create_all()` bootstrap.
+Fetch the complete execution trace:
 
-## Repository layout
+```bash
+curl http://localhost:8000/api/executions/<execution-id>/trace
+```
+
+A trace combines independently persisted records:
+
+```text
+Execution
+├── Audit events
+├── Cost events
+└── Retry / replay relations
+```
+
+Provider adapters or n8n steps can report actual usage after an AI/API call. FlowGuard keeps the original estimated cost separate from the accumulated actual cost.
+
+## Retry and safe replay
+
+Retry a failed run:
+
+```bash
+curl -X POST http://localhost:8000/api/executions/<execution-id>/retry \
+  -H 'Content-Type: application/json' \
+  -d '{"requested_by":"operator"}'
+```
+
+Replay a historical run:
+
+```bash
+curl -X POST http://localhost:8000/api/executions/<execution-id>/replay \
+  -H 'Content-Type: application/json' \
+  -d '{"requested_by":"operator"}'
+```
+
+Replay defaults to **dry-run**, and both retry and replay re-enter policy evaluation.
+
+## Repository map
 
 ```text
 apps/
-  api/                 FastAPI control plane + MCP gateway
-  web/                 Next.js control room + runtime trace console
-infra/
-  postgres/            database bootstrap
+├── api/          FastAPI control plane + MCP gateway
+└── web/          Next.js Control Room + Runtime Console
+
 n8n/
-  workflows/           importable example workflows
+└── workflows/    Importable guarded workflow example
+
+infra/
+└── postgres/     Database bootstrap
+
 docs/
-  ARCHITECTURE.md
-  SECURITY.md
+├── ARCHITECTURE.md
+├── SECURITY.md
+└── DEMO.md
 ```
 
-## Roadmap
+## Stack
 
-- Signed MCP/client authentication and scopes
-- Durable Redis worker queue + dead-letter queue
-- Provider adapters that calculate token cost automatically
+| Layer | Technology |
+| --- | --- |
+| Control API | FastAPI, Python, SQLAlchemy |
+| Operator UI | Next.js, TypeScript |
+| Automation runtime | n8n |
+| Persistence | PostgreSQL |
+| Queue/cache foundation | Redis |
+| Agent protocol | MCP / JSON-RPC |
+| Local deployment | Docker Compose |
+| Quality gate | Ruff, Pytest, Next.js production build |
+
+## Current status
+
+**v0.2.0 — functional reference implementation**
+
+GitHub Actions validates both sides of the project on every push: API lint/tests and the production Next.js build.
+
+FlowGuard is currently local/private-network oriented. Read [`docs/SECURITY.md`](docs/SECURITY.md) before exposing any control-plane endpoint publicly.
+
+## Roadmap to production hardening
+
+- Durable Redis-backed execution workers + Dead Letter Queue
+- Idempotency and callback replay protection
+- Authenticated MCP sessions and per-tool scopes
+- Automatic provider token/cost adapters
+- RBAC and multi-stage approvals
 - OpenTelemetry traces and metrics
-- Role-based and multi-stage approvals
-- Multi-tenant workspaces
-- Workflow version diffing during n8n sync
-- GitHub / Slack / email approval channels
+- Multi-tenant workspace boundaries
+- n8n workflow version diffing
 
-## Security note
+## Contributing
 
-V0.2 still uses a shared secret for n8n callback/cost ingestion in local-first deployments. For production, use signed requests, secret rotation, private networking, least-privilege n8n credentials, MCP client authentication and the controls described in [`docs/SECURITY.md`](docs/SECURITY.md).
+Issues, architecture discussions and focused pull requests are welcome. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Security model](docs/SECURITY.md)
+- [End-to-end demo](docs/DEMO.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 

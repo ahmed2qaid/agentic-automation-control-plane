@@ -1,0 +1,53 @@
+{
+  "name": "FlowGuard - Guarded Action Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "guarded-action",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0f7c6ab8-1ad8-4c82-8c8e-c8bf56dbfd11",
+      "name": "Guarded Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-320, 0],
+      "webhookId": "f2d2ca87-8c07-4bc1-b3d9-92cfcc45be31"
+    },
+    {
+      "parameters": {
+        "jsCode": "const expected = $env.FLOWGUARD_SHARED_SECRET;\nconst provided = $json.headers?.['x-flowguard-secret'];\nif (!provided || provided !== expected) { throw new Error('FlowGuard authorization failed'); }\nreturn [{ json: { accepted: true, execution_id: $json.body?.execution_id, received: $json.body?.input ?? {}, processed_at: new Date().toISOString() } }];"
+      },
+      "id": "444ed89a-1d89-40f4-becd-d58e0adac18e",
+      "name": "Verify & Process",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-80, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "2f5b2f22-b22a-41b3-b50e-4b57f1948305",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [160, 0]
+    }
+  ],
+  "connections": {
+    "Guarded Webhook": {
+      "main": [[{"node": "Verify & Process", "type": "main", "index": 0}]]
+    },
+    "Verify & Process": {
+      "main": [[{"node": "Return Result", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "settings": {"executionOrder": "v1"},
+  "active": false,
+  "tags": []
+}
